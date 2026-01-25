@@ -1,4 +1,4 @@
-package com.mars.ec.security;
+package com.mars.ec.config;
 
 import java.io.IOException;
 import javax.crypto.SecretKey;

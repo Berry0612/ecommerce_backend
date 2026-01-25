@@ -2,7 +2,8 @@ package com.mars.ec.user.Controller;
 
 import com.mars.ec.Cart.Entity.CartEntity;
 import com.mars.ec.Cart.Service.CartService;
-import com.mars.ec.security.JWTProvider;
+import com.mars.ec.config.JWTProvider;
+
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.HttpStatus;

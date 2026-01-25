@@ -1,4 +1,4 @@
-package com.mars.ec.security;
+package com.mars.ec.config;
 
 import io.github.cdimascio.dotenv.Dotenv;
 

@@ -1,11 +1,16 @@
 package com.mars.ec.user.Service;
 
-import com.mars.ec.security.JWTProvider;
-
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.Optional;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import com.mars.ec.config.JWTProvider;
 import com.mars.ec.user.Entity.UserEntity;
 import com.mars.ec.user.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +23,12 @@ public class UserService {
     private final UserRepository userRepository; 
     private final PasswordEncoder passwordEncoder; 
     private final JWTProvider jwtProvider;
-    
+    ///
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final Random random = new Random();
+    //private final RabbitTemplate rabbitTemplate;
+    private final int USER_REDIS_CACHE_MINUTES = 30;
+
     public void createUserEntity(UserEntity userEntity) throws Exception {
 
         UserEntity isEmailExists = userRepository.findByEmail(userEntity.getEmail());
@@ -43,14 +53,49 @@ public class UserService {
         return userEntity;
     }
 
-    public UserEntity findUserByEmail(String email){
-        return userRepository.findByEmail(email);
+    // public UserEntity findUserByEmail(String email){
+    //     return userRepository.findByEmail(email);
+    // }
+
+    // public UserEntity findUserById(Long id) throws Exception{
+    //     Optional<UserEntity> opt = userRepository.findById(id);
+    //     if(opt.isPresent()){
+    //         return opt.get();
+    //     }
+    //     throw new Exception("Error: User not found with id: " + id);
+    // }
+
+    // 修改處：加入 Redis 快取邏輯
+    public UserEntity findUserByEmail(String email) {
+        String cacheKey = "user:email:" + email;
+        UserEntity cachedUser = (UserEntity) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedUser != null) {
+            return cachedUser;
+        }
+
+        UserEntity user = userRepository.findByEmail(email);
+        if (user != null) {
+            int random_delay = random.nextInt(10);
+            redisTemplate.opsForValue().set(cacheKey, user, USER_REDIS_CACHE_MINUTES + random_delay, TimeUnit.MINUTES);
+        }
+
+        return user;
     }
 
-    public UserEntity findUserById(Long id) throws Exception{
+    // 修改處：加入 Redis 快取邏輯
+    public UserEntity findUserById(Long id) throws Exception {
+        String cacheKey = "user:id:" + id;
+        UserEntity cachedUser = (UserEntity) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedUser != null) {
+            return cachedUser;
+        }
+
         Optional<UserEntity> opt = userRepository.findById(id);
-        if(opt.isPresent()){
-            return opt.get();
+        if (opt.isPresent()) {
+            UserEntity user = opt.get();
+            int random_delay = random.nextInt(10);
+            redisTemplate.opsForValue().set(cacheKey, user, USER_REDIS_CACHE_MINUTES + random_delay, TimeUnit.MINUTES);
+            return user;
         }
         throw new Exception("Error: User not found with id: " + id);
     }
