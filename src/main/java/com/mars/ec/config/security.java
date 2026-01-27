@@ -19,25 +19,22 @@ import java.util.List; // 新增
 public class security {
 
     @Bean
-    // 管理Spring Security的權限設定
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JWTProvider jwtProvider) throws Exception {
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // 不儲存session
-                .authorizeHttpRequests(
-                        authorizeHttpRequests -> authorizeHttpRequests.requestMatchers("/api/**").authenticated()
-
-                                .anyRequest().permitAll())
-                // "/api/**"需通過JWT
-
-                .csrf(csrf -> csrf.disable())
-                .addFilterBefore(new JWTAuthenticationFilter(), BasicAuthenticationFilter.class);
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(csrf -> csrf.disable()) // 確保 CSRF 關閉，否則 POST callback 會失敗
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(authorizeHttpRequests -> authorizeHttpRequests
+                    .requestMatchers("/auth/**").permitAll() // 登入註冊放行
+                    .requestMatchers("/api/payment/callback").permitAll() // ★★★ 關鍵：放行綠界 Callback
+                    .requestMatchers("/api/**").authenticated() // 其他 API 仍需驗證
+                    .anyRequest().permitAll()
+            )
+            .addFilterBefore(new JWTAuthenticationFilter(), BasicAuthenticationFilter.class);
 
         return http.build();
     }
-
+    
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -63,4 +60,6 @@ public class security {
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
+    
 }
