@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -14,7 +15,8 @@ import com.mars.ec.config.JWTProvider;
 import com.mars.ec.user.Entity.UserEntity;
 import com.mars.ec.user.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-
+import org.springframework.amqp.rabbit.core.RabbitTemplate; 
+import com.mars.ec.config.RabbitMQConfig;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +30,7 @@ public class UserService {
     private final Random random = new Random();
     //private final RabbitTemplate rabbitTemplate;
     private final int USER_REDIS_CACHE_MINUTES = 30;
+    private final RabbitTemplate rabbitTemplate;
 
     public void createUserEntity(UserEntity userEntity) throws Exception {
 
@@ -41,7 +44,17 @@ public class UserService {
             createUser.setEmail(userEntity.getEmail());
             createUser.setPassword(passwordEncoder.encode(userEntity.getPassword()));
             userRepository.save(createUser);
+            sendRegistrationEmail(userEntity.getEmail());
         }
+    }
+
+    public void sendRegistrationEmail(String to) {
+        rabbitTemplate.convertAndSend(
+            RabbitMQConfig.EXCHANGE_NAME, 
+            RabbitMQConfig.ROUTING_KEY, 
+            to
+        );
+        System.out.println("Sent RabbitMQ message for: " + to);
     }
 
     public UserEntity findUserByJWT(String jwt) throws Exception {

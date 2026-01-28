@@ -12,6 +12,42 @@ services:
     ports:
       - "3306:3306"  
     volumes:
-      - mysql_data:/var/lib/mysql       
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:latest
+    container_name: redis_cart
+    restart: always
+    ports:
+     - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: ecommerce-rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"   # 程式連線用
+      - "15672:15672" # 管理介面用 (http://localhost:15672)
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: mars
 volumes:
   mysql_data:
+
+
+#   app:
+#     build: .
+#     container_name: java_cart
+#     restart: always
+#     ports:
+#       - "8080:8080"
+#     environment:
+#       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/ec_db
+#       SPRING_DATASOURCE_USERNAME: admin
+#       SPRING_DATASOURCE_PASSWORD: mars
+#       SPRING_DATA_REDIS_HOST: redis
+#       SPRING_RABBITMQ_HOST: rabbitmq
+
+# volumes:
+#   db_data:
+#   rabbitmq_data:
