@@ -15,7 +15,6 @@ import com.mars.ec.product.Entity.ProductEntity;
 import com.mars.ec.product.Repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 
-
 @Service
 @RequiredArgsConstructor
 public class ProductService {
@@ -24,28 +23,49 @@ public class ProductService {
     private final int PRODUCT_REDIS_CACHE_MINUTES = 1;
     private final Random random = new Random();
 
-     public ProductEntity addProduct(ProductEntity product) {
+    public ProductEntity addProduct(ProductEntity product) {
+        product.setStatus(true);
         return productRepository.save(product);
     }
 
-    public void deleteProduct(Long id) {
-        productRepository.deleteById(id);
-        // 刪除Redis快取
-        String cacheKey = "product:" + id;
-        redisTemplate.delete(cacheKey);
+    // public void deleteProduct(Long id) {
+    //     productRepository.deleteById(id);
+
+    //     String cacheKey = "product:" + id;
+    //     redisTemplate.delete(cacheKey);
+    // }
+
+    //控制上下架邏輯
+    public void changeStatus(Long id){
+        Optional<ProductEntity> optProduct = productRepository.findById(id);
+        if(optProduct.isPresent()){
+            ProductEntity product =  optProduct.get();
+            product.setStatus(false);
+            productRepository.save(product);
+
+            String cacheKey = "product:" + id;
+            redisTemplate.delete(cacheKey);
+        }
     }
 
     public ProductEntity getProductById(Long id) throws Exception {
-        // 從Redis取得快取資料
         String cacheKey = "product:" + id;
         ProductEntity cachedProduct = (ProductEntity) redisTemplate.opsForValue().get(cacheKey);
         if (cachedProduct != null) {
-            return cachedProduct;
+            if (Boolean.TRUE.equals(cachedProduct.getStatus())){
+                return cachedProduct;
+            }
+            else{
+                redisTemplate.delete(cacheKey);
+            }
         }
         // 沒有在Redis快取中，必須從資料庫取得
         Optional<ProductEntity> opt = productRepository.findById(id);
         if (opt.isPresent()) {
             ProductEntity product = opt.get();
+            if(Boolean.FALSE.equals(product.getStatus())){
+                throw new Exception("Product not found");
+            }
             // 存入Redis快取，設定過期規則
             int random_delay = random.nextInt(3);
             redisTemplate.opsForValue().set(cacheKey, product, PRODUCT_REDIS_CACHE_MINUTES + random_delay, TimeUnit.MINUTES);

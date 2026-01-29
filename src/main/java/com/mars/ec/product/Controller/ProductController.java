@@ -27,12 +27,12 @@ public class ProductController {
     //value用來定位URL中的參數，required = false代表可以不填，required = true是強制要填資料
     public ResponseEntity<Page<ProductEntity>> findProductByFilter(
 
-        @RequestParam(value = "category", required = false) String category,                                                    
+        @RequestParam(value = "category", required = false, defaultValue = "") String category,                                                    
         @RequestParam(value = "minPrice", required = false) Integer minPrice,                                                   
         @RequestParam(value = "maxPrice", required = false) Integer maxPrice,                                                  
         @RequestParam(value = "sort", required = false) String sort,                         
-        @RequestParam(value = "pageNumber", required = true) Integer pageNumber,                                               
-        @RequestParam(value = "pageSize", required = true) Integer pageSize){
+        @RequestParam(value = "pageNumber", required = false, defaultValue = "0") Integer pageNumber,                                               
+        @RequestParam(value = "pageSize", required = false, defaultValue = "9") Integer pageSize){
 
         Page<ProductEntity> filteredProductsPage = productService.getProductsByFilter(category, minPrice, maxPrice, sort, pageNumber, pageSize);
         return new ResponseEntity<>(filteredProductsPage, HttpStatus.OK);
@@ -44,15 +44,19 @@ public class ProductController {
         return new ResponseEntity<>(createdProduct, HttpStatus.CREATED);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteProduct(@PathVariable("id") Long id) {
-        productService.deleteProduct(id); 
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
-
-
     @GetMapping("/{id}")
     public ResponseEntity<ProductEntity> getProductById(@PathVariable("id") Long id) throws Exception {
-        return new ResponseEntity<>(productService.getProductById(id), HttpStatus.OK);
+        try {
+            return new ResponseEntity<>(productService.getProductById(id), HttpStatus.OK);
+        }catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
     } 
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteProduct(@PathVariable("id") Long id) {
+        productService.changeStatus(id); //沒有刪掉只是改變上下架狀態
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
 }
+    

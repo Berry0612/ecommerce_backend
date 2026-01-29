@@ -25,4 +25,5 @@ public class ProductEntity {
     private Integer price;
     //private String image;
     private String category;
+    private Boolean status = true;
 }

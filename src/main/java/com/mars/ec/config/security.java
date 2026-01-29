@@ -26,7 +26,8 @@ public class security {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorizeHttpRequests -> authorizeHttpRequests
                     .requestMatchers("/auth/**").permitAll() // 登入註冊放行
-                    .requestMatchers("/api/payment/callback").permitAll() // ★★★ 關鍵：放行綠界 Callback
+                    .requestMatchers("/api/payment/callback").permitAll() // 放行綠界 Callback
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/product/**").permitAll()
                     .requestMatchers("/api/**").authenticated() // 其他 API 仍需驗證
                     .anyRequest().permitAll()
             )
