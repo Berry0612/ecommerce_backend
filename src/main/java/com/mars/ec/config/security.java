@@ -2,6 +2,7 @@ package com.mars.ec.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,12 +27,18 @@ public class security {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorizeHttpRequests -> authorizeHttpRequests
                     .requestMatchers("/auth/**").permitAll() // 登入註冊放行
+                
+                    .requestMatchers(HttpMethod.GET, "/api/product/**").permitAll()
+                    //只有 ADMIN 才能新增/修改/刪除產品// 
+                    .requestMatchers(HttpMethod.POST, "/api/product/**").hasRole("ADMIN") 
+                    .requestMatchers(HttpMethod.PUT, "/api/product/**").hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.DELETE, "/api/product/**").hasRole("ADMIN")
+
                     .requestMatchers("/api/payment/callback").permitAll() // 放行綠界 Callback
-                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/product/**").permitAll()
                     .requestMatchers("/api/**").authenticated() // 其他 API 仍需驗證
                     .anyRequest().permitAll()
             )
-            .addFilterBefore(new JWTAuthenticationFilter(), BasicAuthenticationFilter.class);
+            .addFilterBefore(new JWTAuthenticationFilter(jwtProvider), BasicAuthenticationFilter.class);
 
         return http.build();
     }

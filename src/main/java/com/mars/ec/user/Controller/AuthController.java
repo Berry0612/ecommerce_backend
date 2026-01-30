@@ -31,7 +31,7 @@ public class AuthController {
 
         userService.createUserEntity(userEntity);
 
-        String token = jwtProvider.generateToken(userEntity.getEmail());
+        String token = jwtProvider.generateToken(userEntity.getEmail(), userEntity.getRole());
         AuthResponse authResponse = new AuthResponse();
         authResponse.setJwt(token);
         authResponse.setMessage("註冊成功");
@@ -49,7 +49,7 @@ public class AuthController {
             throw new Exception("信箱或密碼錯誤");
         }
 
-        String token = jwtProvider.generateToken(foundUserEntity.getEmail());
+        String token = jwtProvider.generateToken(foundUserEntity.getEmail(), foundUserEntity.getRole());
         AuthResponse authResponse = new AuthResponse();
         authResponse.setJwt(token);
         authResponse.setMessage("登入成功");
