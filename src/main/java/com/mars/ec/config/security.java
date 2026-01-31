@@ -2,6 +2,7 @@ package com.mars.ec.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -20,7 +21,7 @@ import java.util.List; // 新增
 public class security {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JWTProvider jwtProvider) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JWTProvider jwtProvider, RedisTemplate<String, Object> redisTemplate) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable()) // 確保 CSRF 關閉，否則 POST callback 會失敗
@@ -29,7 +30,9 @@ public class security {
                     .requestMatchers("/auth/**").permitAll() // 登入註冊放行
                 
                     .requestMatchers(HttpMethod.GET, "/api/product/**").permitAll()
+
                     //只有 ADMIN 才能新增/修改/刪除產品// 
+                     
                     .requestMatchers(HttpMethod.POST, "/api/product/**").hasRole("ADMIN") 
                     .requestMatchers(HttpMethod.PUT, "/api/product/**").hasRole("ADMIN")
                     .requestMatchers(HttpMethod.DELETE, "/api/product/**").hasRole("ADMIN")
@@ -38,7 +41,7 @@ public class security {
                     .requestMatchers("/api/**").authenticated() // 其他 API 仍需驗證
                     .anyRequest().permitAll()
             )
-            .addFilterBefore(new JWTAuthenticationFilter(jwtProvider), BasicAuthenticationFilter.class);
+            .addFilterBefore(new JWTAuthenticationFilter(jwtProvider, redisTemplate), BasicAuthenticationFilter.class);
 
         return http.build();
     }
@@ -69,5 +72,4 @@ public class security {
         return new BCryptPasswordEncoder();
     }
 
-    
 }

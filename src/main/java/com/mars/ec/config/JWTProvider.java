@@ -21,6 +21,18 @@ public class JWTProvider {
                 .compact(); // 編碼JWT header.payload.signature
     }
 
+    //新增：取得 Token 的過期時間
+    public Date getExpirationDateFromJWT(String jwt) {
+        if (jwt != null && jwt.startsWith("Bearer ")) {
+            jwt = jwt.substring(7);
+        }
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build().parseClaimsJws(jwt)
+                .getBody();
+        return claims.getExpiration();
+    }
+
     public String getEmailFromJWT(String jwt) {
         //jwt = jwt.substring("Bearer".length() - 1);
         if (jwt != null && jwt.startsWith("Bearer ")) {
