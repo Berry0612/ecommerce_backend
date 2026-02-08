@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import com.mars.ec.product.Entity.ProductEntity;
 import com.mars.ec.product.Repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -27,13 +29,6 @@ public class ProductService {
         product.setStatus(true);
         return productRepository.save(product);
     }
-
-    // public void deleteProduct(Long id) {
-    //     productRepository.deleteById(id);
-
-    //     String cacheKey = "product:" + id;
-    //     redisTemplate.delete(cacheKey);
-    // }
 
     //控制上下架邏輯
     public void changeStatus(Long id){
@@ -74,42 +69,68 @@ public class ProductService {
         throw new Exception("Product not found");
     }
 
-    // 修改處：列表查詢加入快取
-    public Page<ProductEntity> getProductsByFilter(String category, Integer minPrice, Integer maxPrice, String sort, Integer pageNumber, Integer pageSize) {
-        Pageable pageable = PageRequest.of(pageNumber, pageSize);
-        List<ProductEntity> products;
-
-        // 在快取中尋找
-        String cacheKey = "products:filter:category:" + category +
-                ":minPrice:" + minPrice +
-                ":maxPrice:" + maxPrice +
-                ":sort:" + sort +
-                ":page:" + pageNumber +
-                ":size:" + pageSize;
-        
-        List<ProductEntity> cachedProducts = (List<ProductEntity>) redisTemplate.opsForValue().get(cacheKey);
-
-        if (cachedProducts != null) {
-            // 直接將快取的資料放入products
-            products = cachedProducts;
-        } else {
-            // 沒在快取中，從資料庫取得符合條件的產品
-            products = productRepository.findProductsByFilter(category, minPrice, maxPrice, sort);
-            int random_delay = random.nextInt(3);
-            redisTemplate.opsForValue().set(cacheKey, products, PRODUCT_REDIS_CACHE_MINUTES + random_delay, TimeUnit.MINUTES);
-        }
-
-        // 設定從哪裡開始取資料，哪裡結束 (因為快取存的是完整List，需要手動分頁)
-        int startIndex = (int) pageable.getOffset();
-        int endIndex = Math.min((startIndex + pageable.getPageSize()), products.size());
-
-        if (startIndex > products.size()) {
-             return new PageImpl<>(List.of(), pageable, products.size());
-        }
-
-        // 從過濾後的產品列表，截取對應頁數和數量的產品
-        List<ProductEntity> pageContent = products.subList(startIndex, endIndex);
-
-        return new PageImpl<>(pageContent, pageable, products.size());
+    // 請將 ProductService.java 內的此方法完全替換
+public Page<ProductEntity> getProductsByFilter(String category, Integer minPrice, Integer maxPrice, String sort, Integer pageNumber, Integer pageSize) {
+    
+    // 1. 使用新變數處理空字串，保持參數不變
+    String filterCategory = category;
+    if (filterCategory != null && filterCategory.trim().isEmpty()) {
+        filterCategory = null;
     }
+
+    // 2. 建立快取 Key
+    String cacheKey = "products:v2:cat:" + category + ":min:" + minPrice + ":max:" + maxPrice + ":sort:" + sort + ":p:" + pageNumber;
+
+    // 3. 嘗試讀取快取
+    try {
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached instanceof List) {
+            return new PageImpl<>((List<ProductEntity>) cached, PageRequest.of(pageNumber, pageSize), ((List<?>) cached).size());
+        }
+    } catch (Exception e) {
+        System.err.println("Redis error: " + e.getMessage());
+    }
+
+    // 4. [關鍵點] 使用 Specification 進行動態查詢
+    // 不要再用 productRepository.findProductsByFilter，因為它處理不了 null
+    org.springframework.data.jpa.domain.Specification<ProductEntity> spec = (root, query, cb) -> {
+        List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+        // 只有 category 有值才過濾，是 null 就不會出現在 SQL 條件裡
+        if (category != null) {
+            predicates.add(cb.equal(root.get("category"), category));
+        }
+
+        // 價格區間判斷
+        if (minPrice != null) {
+            predicates.add(cb.greaterThanOrEqualTo(root.get("price"), minPrice));
+        }
+        if (maxPrice != null) {
+            predicates.add(cb.lessThanOrEqualTo(root.get("price"), maxPrice));
+        }
+
+        // 只顯示上架商品
+        predicates.add(cb.equal(root.get("status"), true));
+
+        return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+    };
+
+    // 5. 處理排序
+    Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by("id").descending());
+    if ("price_asc".equals(sort)) {
+        pageable = PageRequest.of(pageNumber, pageSize, Sort.by("price").ascending());
+    } else if ("price_desc".equals(sort)) {
+        pageable = PageRequest.of(pageNumber, pageSize, Sort.by("price").descending());
+    }
+
+    // 6. 執行查詢
+    Page<ProductEntity> resultPage = productRepository.findAll(spec, pageable);
+
+    // 7. 存入快取
+    if (!resultPage.isEmpty()) {
+        redisTemplate.opsForValue().set(cacheKey, resultPage.getContent(), 1, TimeUnit.MINUTES);
+    }
+
+    return resultPage;
+}
 }
