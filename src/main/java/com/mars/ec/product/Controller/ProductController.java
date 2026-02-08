@@ -32,7 +32,7 @@ public class ProductController {
         @RequestParam(value = "maxPrice", required = false) Integer maxPrice,                                                  
         @RequestParam(value = "sort", required = false) String sort,                         
         @RequestParam(value = "pageNumber", required = false, defaultValue = "0") Integer pageNumber,                                               
-        @RequestParam(value = "pageSize", required = false, defaultValue = "9") Integer pageSize){
+        @RequestParam(value = "pageSize", required = false, defaultValue = "12") Integer pageSize){
 
         Page<ProductEntity> filteredProductsPage = productService.getProductsByFilter(category, minPrice, maxPrice, sort, pageNumber, pageSize);
         return new ResponseEntity<>(filteredProductsPage, HttpStatus.OK);

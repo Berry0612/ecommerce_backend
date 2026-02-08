@@ -23,7 +23,8 @@ public class ProductEntity {
     private String name;
     private String description;
     private Integer price;
-    //private String image;
+    // private String image;
     private String category;
+    private String imageUrl;
     private Boolean status = true;
 }
